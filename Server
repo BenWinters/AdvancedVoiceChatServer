@@ -1,0 +1,130 @@
+import java.net.*;
+import java.io.*;
+import java.util.ArrayList;
+ 
+class ChatServerReader implements Runnable { 
+    protected Socket         socket;
+    protected PrintWriter    out;
+    protected BufferedReader in;
+    protected String         name; 
+    public ChatServerReader(Socket socket) {
+        this.socket = socket;
+        try {
+            this.out = new PrintWriter(this.socket.getOutputStream(), true);
+            this.in  = new BufferedReader
+                (new InputStreamReader(this.socket.getInputStream()));  
+            this.out.println("Enter name:");
+            name=this.in.readLine();
+            this.out.println("You are now connected with the username: "+name);
+            
+        } catch (IOException e) {
+            System.out.println("IOException: " + e);
+        }
+    } 
+    public void run() {
+        System.out.println
+            ("--New user with name \"" + name + "\" has connected--");
+        ChatServer.notifyConnection(name);
+        ChatServer.notifyWhoIsIn();
+        while (true) {
+            try {
+                String fromClient = this.in.readLine(); 
+                if (fromClient == null) {
+                    System.out.println
+                        ("--User with name \"" + name + "\" has disconnected--");
+                    ChatServer.notifyDisconnection(name);
+                    this.in.close();
+                    this.out.close();
+                    this.socket.close();
+                    return;
+                }               
+                ChatServer.sendToAll(fromClient,name);
+                System.out.println(name+" said: " + fromClient); 
+            } catch (IOException e) {
+                System.out.println
+                    ("--User with name \"" + name + "\" has disconnected--");
+                ChatServer.notifyDisconnection(name);
+                return;
+            }
+        }
+    } 
+    public void printHere(String out, String fromName){
+        this.out.println(fromName+ ": "+out);
+    } 
+} 
+public class ChatServer {
+    public static ArrayList<ChatServerReader> arr; 
+    public static void main(String [] args) {
+        for (int x = 0 ; x < 200 ; x++){
+            System.out.println();
+        }
+        arr= new ArrayList<ChatServerReader>();
+        BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+        System.out.println("--WELCOME TO THE CHAT SERVER--");
+        ServerSocket serverSocket = null;
+        int socketNumber = -1;
+        try {
+            System.out.println("Please enter port:");
+            socketNumber = Integer.parseInt(in.readLine());
+            serverSocket = new ServerSocket(socketNumber);
+        } catch (IOException e) {
+            System.out.println("IOException: " + e);
+            System.exit(1);
+        }
+        System.out.println("Server now listening to port " + socketNumber);
+        in = null;
+        while (true) {
+            try {
+                Socket clientSocket = serverSocket.accept();
+                ChatServerReader clientThread = new ChatServerReader(clientSocket);
+                arr.add(clientThread); 
+                new Thread(clientThread).start();
+            } catch (IOException e) {
+                System.out.println("Accept failed: " + e);
+                System.exit(1);
+            }
+        }
+    } 
+    public static void notifyConnection(String fromName){
+        String out = fromName+ " has connected";
+        for(int x=0;x<arr.size();x++){
+            if(arr.get(x)!= null){
+                arr.get(x).printHere(out,"*Admin*");
+            }
+        }
+    } 
+    public static void notifyDisconnection(String fromName){
+        String out = fromName + " has disconnected";
+        for(int x=0;x<arr.size();x++){
+            if(arr.get(x)!= null){
+                arr.get(x).printHere(out,"*Admin*");
+            }
+        }
+    }
+    public static void notifyWhoIsIn(){
+        if (arr.size() == 0){
+            System.out.println("--ERROR No one is connected--");
+        }
+        else if (arr.size() == 1){            
+            arr.get(arr.size()-1).printHere
+                ("You are the only user in the chat room", "*Admin*");
+        }
+        else{           
+            arr.get(arr.size()-1).printHere
+            ("Users who are currently in the chat room:" , "*Admin*");
+            String line = "";
+            for (int x=0;x<arr.size()-1;x++){
+                arr.get(arr.size()-1).printHere(arr.get(x).name , "*Admin*");
+            }
+        }
+    }
+    public static void sendToAll(String out, String fromName){
+        for(int x=0;x<arr.size();x++){
+            if(!arr.get(x).name.equals(fromName)){
+                if(arr.get(x)!=null){
+                    arr.get(x).printHere(out,fromName);
+                }
+            }
+        }
+    } 
+}
