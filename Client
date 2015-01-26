@@ -1,0 +1,58 @@
+import java.net.*;
+import java.io.*;
+public class SocketExample {
+    public static Socket         socket = null;
+    public static PrintWriter    out = null;
+    public static BufferedReader in = null;   
+    public static void main(String [] args) {      
+        for (int x = 0 ; x < 200 ; x++){
+            System.out.println();
+        }
+        BufferedReader userIn = new BufferedReader(new InputStreamReader(System.in));
+        System.out.println("--WELCOME TO THE CHAT PROGRAM--");      
+        try {
+            System.out.println("Please enter host:");
+            String host = userIn.readLine();
+            System.out.println("Please enter port:");
+            int socketNumber = Integer.parseInt(userIn.readLine());
+            SocketExample.socket = new Socket(host, socketNumber);
+            SocketExample.out = new PrintWriter(socket.getOutputStream(), true);
+            SocketExample.in  = new BufferedReader
+                (new InputStreamReader(socket.getInputStream()));           
+        } catch (UnknownHostException e) {            
+            System.out.println("Unknown host!");
+            System.exit(1);
+        } catch (IOException e) {
+            System.out.println("IOException: " + e);
+            System.exit(1);
+        }       
+        new Thread(new Runnable()
+            {
+                public void run() {
+                    while (true) {
+                        try {
+                            String fromServer = SocketExample.in.readLine();
+                            if (fromServer == null) {
+                                System.out.println("Connection terminated!");
+                                System.exit(1);
+                            }
+                            System.out.println(fromServer);
+                        } catch (IOException e) {
+                            System.out.println("Connection terminated!");
+                            System.exit(1);
+                        }
+                    }
+                }
+            }
+        ).start();   
+        while (true) {
+            try {
+                String fromUser = userIn.readLine();
+                SocketExample.out.println(fromUser);
+            } catch (IOException e) {
+                System.out.println("IOException: " + e);
+                System.exit(1);
+            }
+        }        
+    }
+}
